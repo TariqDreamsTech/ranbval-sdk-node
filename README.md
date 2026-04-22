@@ -1,8 +1,6 @@
-# Ranbval SDK — Node.js
+# Ranbval SDK
 
 Keep API secrets out of plaintext config. Layered `.ranbval*` env files, decrypt vault tokens only when used, optional usage telemetry — minimal deps, your own HTTP/SDK stack.
-
-> Mirrors the [Python SDK](https://pypi.org/project/ranbval-sdk/). Same `.ranbval` file format, same vault-token wire format. A token issued for the Python SDK decrypts identically with this Node SDK.
 
 ## Install
 
@@ -10,7 +8,7 @@ Keep API secrets out of plaintext config. Layered `.ranbval*` env files, decrypt
 npm install ranbval-sdk
 ```
 
-Requires Node 18 or newer. Zero runtime dependencies (built-ins only: `crypto`, `https`, `child_process`).
+Requires Node 18 or newer. Zero runtime dependencies (Node built-ins only: `crypto`, `https`, `child_process`).
 
 ## Quick start
 
@@ -27,7 +25,7 @@ const openaiKey = decryptKey('MYAPP_OPENAI_KEY');
 const client = new OpenAI({ apiKey: openaiKey.use() });
 ```
 
-## `.ranbval` file (same as Python SDK)
+## `.ranbval` file
 
 ```dotenv
 # Project secret — created when you make a project in the Ranbval dashboard
@@ -58,11 +56,11 @@ The loader merges layers (later overrides earlier):
 Loads `.ranbval*` files into `process.env`.
 
 ```js
-loadRanbval();                                                   // auto-discover
-loadRanbval('/path/to/.ranbval');                                // single file
+loadRanbval();                                                  // auto-discover
+loadRanbval('/path/to/.ranbval');                               // single file
 loadRanbval(null, { mode: 'production', override: true });      // pick mode + force
 loadRanbval(null, {
-  projectName: 'myapp',                                         // sets RANBVAL_PROJECT_PREFIX=MYAPP_
+  projectName: 'myapp',                                         // sets RANBVAL_PROJECT_PREFIX=MYAPP
   projectSecret: 'ranbval-proj-xxx',                            // sets RANBVAL_PROJECT_SECRET
 });
 ```
@@ -108,7 +106,7 @@ const resp = await proxyRequest({
   targetUrl: 'https://api.openai.com/v1/chat/completions',
   method: 'POST',
   injectAs: 'bearer',                           // → Authorization: Bearer <secret>
-  body: { model: 'gpt-4o', messages: [...] },
+  body: { model: 'gpt-4o', messages: [/* … */] },
 });
 console.log(resp.body);
 ```
@@ -163,9 +161,9 @@ await emitTelemetry({
 | `RANBVAL_TELEMETRY_DEBUG=1` | Log telemetry POST failures to stderr |
 | `RANBVAL_ENV` / `ENVIRONMENT` / `ENV` | Pick `.ranbval.{mode}` layer (default: `development`) |
 
-## Wire format compatibility
+## Wire format
 
-Vault tokens follow the same shape used by the Python SDK and the Ranbval backend:
+Vault tokens use this shape:
 
 ```
 ranbval . <salt 10-char> . <urlsafe-base64( IV ‖ ciphertext ‖ authTag )> . ahsan
@@ -179,16 +177,10 @@ Where:
 * Key — `PBKDF2-SHA256(password = projectSecret, salt = token.salt, iterations = 100_000, length = 32)`
 * Cipher — AES-256-GCM, no AAD
 
-A token created by either SDK decrypts in either SDK.
+## Links
 
-## Run the example
-
-```bash
-cd ranbval-sdk-node
-node examples/basic.js
-```
-
-Same flow as the Python `run.py` — loads config, decrypts, optionally proxies, emits telemetry.
+* Website: <https://www.ranbval.com>
+* Issues: <https://github.com/TariqDreamsTech/ranbval-sdk-node/issues>
 
 ## License
 

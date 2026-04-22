@@ -1,15 +1,16 @@
 {
   "name": "ranbval-sdk",
-  "version": "0.8.1",
+  "version": "0.8.3",
   "description": "Keep API secrets out of plaintext config: layered .ranbval* env files, decrypt vault tokens only when used, optional usage telemetry — minimal deps, your own HTTP/SDK stack.",
-  "main": "src/index.js",
-  "types": "src/index.d.ts",
+  "main": "dist/index.js",
   "files": [
-    "src/",
+    "dist/",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
+    "build": "esbuild src/index.js --bundle --platform=node --target=node18 --format=cjs --minify --legal-comments=none --outfile=dist/index.js && node -e \"require('fs').writeFileSync('dist/index.js', '/*! ranbval-sdk - Apache-2.0 - https://www.npmjs.com/package/ranbval-sdk */\\n' + require('fs').readFileSync('dist/index.js','utf8'))\"",
+    "prepublishOnly": "npm run build",
     "test": "node --test test/*.test.js",
     "example": "node examples/basic.js"
   },
@@ -29,7 +30,6 @@
   "engines": {
     "node": ">=18.0.0"
   },
-  "dependencies": {},
   "repository": {
     "type": "git",
     "url": "git+https://github.com/TariqDreamsTech/ranbval-sdk-node.git"
@@ -37,5 +37,8 @@
   "bugs": {
     "url": "https://github.com/TariqDreamsTech/ranbval-sdk-node/issues"
   },
-  "homepage": "https://www.ranbval.com"
+  "homepage": "https://www.ranbval.com",
+  "devDependencies": {
+    "esbuild": "^0.28.0"
+  }
 }
