@@ -1,0 +1,38 @@
+{
+  "name": "ranbval-sdk",
+  "version": "0.8.0",
+  "description": "Keep API secrets out of plaintext config: layered .ranbval* env files, decrypt vault tokens only when used, optional usage telemetry — minimal deps, your own HTTP/SDK stack.",
+  "main": "src/index.js",
+  "types": "src/index.d.ts",
+  "files": [
+    "src/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "example": "node examples/basic.js"
+  },
+  "keywords": [
+    "ranbval",
+    "secrets",
+    "api-keys",
+    "encryption",
+    "vault",
+    "env",
+    "dotenv",
+    "aes-gcm",
+    "pbkdf2"
+  ],
+  "author": "Ahsan Tariq, Hussnain Tariq, Sundas Tariq",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ranbval/ranbval-sdk-node"
+  },
+  "homepage": "https://www.ranbval.com"
+}

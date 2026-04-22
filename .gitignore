@@ -1,0 +1,12 @@
+node_modules/
+*.log
+.env
+.env.local
+.ranbval.local
+.ranbval.development.local
+.ranbval.production.local
+.DS_Store
+dist/
+*.tgz
+.npm/
+coverage/

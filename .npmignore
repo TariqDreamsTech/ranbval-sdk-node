@@ -1,0 +1,6 @@
+examples/
+test/
+.gitignore
+.ranbval*
+.DS_Store
+*.tgz
