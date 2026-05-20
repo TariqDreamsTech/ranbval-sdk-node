@@ -1,22 +1,34 @@
 /**
  * SecretString — a wrapper that never exposes its value via toString / inspect / JSON.
  *
- * The decrypted secret is held in memory but blocked from accidental exposure:
+ * The decrypted secret is stored in a mutable Buffer so it can be genuinely zeroed
+ * from memory after use. All display paths are blocked against accidental exposure:
  *
  *     console.log(secret)          // [ranbval:secret]
  *     `${secret}`                  // [ranbval:secret]
  *     util.inspect(secret)         // SecretString(***)
  *     JSON.stringify(secret)       // "[ranbval:secret]"   (intentional, no leak)
- *     console.dir(secret)          // SecretString { _value: '[ranbval:secret]' }
  *
- * To actually use the value (pass to an API, header, etc.):
+ * Two ways to consume the value:
  *
- *     secret.use()                 // returns the raw string (only access point)
+ *     // Direct access
+ *     secret.use()                 // returns the raw string; secret stays valid
+ *
+ *     // using keyword (Node 22+ / TC39 explicit resource management)
+ *     using key = decryptKey('MY_KEY');
+ *     const client = new OpenAI({ apiKey: key.use() });
+ *     // key.wipe() called automatically at block exit
+ *
+ *     // Manual wipe
+ *     secret.wipe();               // zeroes Buffer; use() throws after this
  */
 
 'use strict';
 
 const util = require('util');
+
+// WeakMap keeps wiped state private — cannot be tampered via property access.
+const _wiped = new WeakMap();
 
 class SecretString {
   /**
@@ -24,12 +36,11 @@ class SecretString {
    * @param {string} [label]
    */
   constructor(value, label = 'secret') {
-    // Store value as a non-enumerable, non-writable property so it does not
-    // appear in console.dir / Object.keys / JSON.stringify output.
-    Object.defineProperty(this, '_value', {
-      value: String(value),
+    // Store secret in a mutable Buffer — can be genuinely zeroed unlike a JS string.
+    Object.defineProperty(this, '_buf', {
+      value: Buffer.from(String(value), 'utf8'),
       enumerable: false,
-      writable: false,
+      writable: false,      // reference can't be replaced
       configurable: false,
     });
     Object.defineProperty(this, '_label', {
@@ -38,7 +49,30 @@ class SecretString {
       writable: false,
       configurable: false,
     });
-    Object.freeze(this);
+    _wiped.set(this, false);
+  }
+
+  // ── Memory wipe ───────────────────────────────────────────────────────────
+
+  /**
+   * Zero the secret bytes in memory. After this, use() throws.
+   * Called automatically when used with the `using` keyword (Node 22+).
+   */
+  wipe() {
+    this._buf.fill(0);
+    _wiped.set(this, true);
+  }
+
+  /**
+   * TC39 explicit resource management — called automatically by the `using` keyword.
+   *
+   * @example
+   *   using key = decryptKey('MY_KEY');
+   *   const client = new OpenAI({ apiKey: key.use() });
+   *   // wipe() called here automatically
+   */
+  [Symbol.dispose]() {
+    this.wipe();
   }
 
   // ── All display paths blocked ─────────────────────────────────────────────
@@ -47,17 +81,14 @@ class SecretString {
     return '[ranbval:secret]';
   }
 
-  // util.inspect uses this when console.log is given the object directly
   [util.inspect.custom]() {
     return 'SecretString(***)';
   }
 
-  // JSON.stringify path
   toJSON() {
     return '[ranbval:secret]';
   }
 
-  // Template-literal coercion
   [Symbol.toPrimitive]() {
     return '[ranbval:secret]';
   }
@@ -66,7 +97,7 @@ class SecretString {
 
   /**
    * Return the raw secret value for use in API calls, headers, etc.
-   * This is the only way to access the plaintext — call deliberately.
+   * Throws if the secret has already been wiped.
    *
    * @returns {string}
    *
@@ -74,12 +105,15 @@ class SecretString {
    *   const client = new OpenAI({ apiKey: secret.use() });
    */
   use() {
-    return this._value;
+    if (_wiped.get(this)) {
+      throw new Error('SecretString has been wiped and cannot be used again');
+    }
+    return this._buf.toString('utf8');
   }
 
-  /** Length of the secret (safe — does not reveal content). */
+  /** Length of the secret in bytes (safe — does not reveal content). */
   get length() {
-    return this._value.length;
+    return this._buf.length;
   }
 
   /** Optional label set at decrypt time (e.g. env var name). */

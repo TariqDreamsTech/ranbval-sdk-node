@@ -75,5 +75,68 @@ test('SecretString blocks all leak vectors', () => {
   assert.strictEqual(`${s}`, '[ranbval:secret]');
   assert.strictEqual(JSON.stringify({ s }), '{"s":"[ranbval:secret]"}');
   assert.strictEqual(s.use(), 'top-secret');
-  assert.throws(() => { s._value = 'leaked'; });
+  // _buf reference is non-writable — assigning it must throw in strict mode
+  assert.throws(() => { 'use strict'; Object.defineProperty(s, '_buf', { value: Buffer.alloc(0) }); });
+});
+
+test('SecretString: Buffer backend is mutable and wipe zeroes memory', () => {
+  const s = new SecretString('my-api-key');
+  const buf = s._buf;
+  s.wipe();
+  // Every byte must be zero after wipe
+  for (let i = 0; i < buf.length; i++) {
+    assert.strictEqual(buf[i], 0, `byte ${i} not zeroed`);
+  }
+});
+
+test('SecretString: use() throws after wipe', () => {
+  const s = new SecretString('my-api-key');
+  s.wipe();
+  assert.throws(() => s.use(), /wiped/);
+});
+
+test('SecretString: double wipe is safe', () => {
+  const s = new SecretString('val');
+  s.wipe();
+  assert.doesNotThrow(() => s.wipe());
+});
+
+test('SecretString: Symbol.dispose zeroes memory (using-keyword contract)', () => {
+  const s = new SecretString('dispose-test');
+  const buf = s._buf;
+  s[Symbol.dispose]();
+  assert.throws(() => s.use(), /wiped/);
+  for (let i = 0; i < buf.length; i++) {
+    assert.strictEqual(buf[i], 0);
+  }
+});
+
+test('SecretString: context manager pattern — client init, secret wiped', () => {
+  process.env.RANBVAL_SKIP_REPO_CHECK = '1';
+  const projectSecret = 'ranbval-proj-cm-test';
+  const token = buildVaultToken('sk-live-abc123', projectSecret);
+  process.env.RANBVAL_PROJECT_SECRET = projectSecret;
+  process.env.CM_API_KEY = token;
+
+  const secret = decryptKey('CM_API_KEY');
+  const apiKey = secret.use();       // consume before wipe
+  secret.wipe();
+
+  // value was captured before wipe
+  assert.strictEqual(apiKey, 'sk-live-abc123');
+  // secret is now dead
+  assert.throws(() => secret.use(), /wiped/);
+});
+
+test('SecretString: length is byte-length, safe to expose', () => {
+  const s = new SecretString('hello');
+  assert.strictEqual(s.length, 5);
+});
+
+test('SecretString: unicode roundtrip and wipe', () => {
+  const val = 'پاکستان-key-🔑';
+  const s = new SecretString(val);
+  assert.strictEqual(s.use(), val);
+  s.wipe();
+  assert.throws(() => s.use(), /wiped/);
 });
