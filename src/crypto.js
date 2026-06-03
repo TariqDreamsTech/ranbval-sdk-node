@@ -59,7 +59,7 @@ function _enforceRepoAllowlistIfConfigured(clientSalt) {
  *   const secret = safeDecrypt(token, projectSecret);
  *   const client = new OpenAI({ apiKey: secret.use() });
  */
-function safeDecrypt(copyToken, projectSecret) {
+function safeDecrypt(copyToken, projectSecret, label = 'secret') {
   if (typeof copyToken !== 'string' || !copyToken) {
     throw new Error('Corrupted cryptographic token identifier or signature matrix');
   }
@@ -119,7 +119,7 @@ function safeDecrypt(copyToken, projectSecret) {
     throw new Error('Decryption failed! Did you provide the correct E2E vault secret?');
   }
 
-  return new SecretString(plaintext.toString('utf8'));
+  return new SecretString(plaintext.toString('utf8'), label);
 }
 
 /**
@@ -184,9 +184,7 @@ function decryptKey(envVar) {
     return new SecretString(token, envVar);
   }
   const projectSecret = _findProjectSecretFor(envVar);
-  const out = safeDecrypt(token, projectSecret);
-  // Re-wrap with envVar as label for traceability — SecretString is frozen so build a fresh one.
-  return new SecretString(out.use(), envVar);
+  return safeDecrypt(token, projectSecret, envVar);
 }
 
 module.exports = {
