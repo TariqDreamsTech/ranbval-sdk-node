@@ -28,11 +28,14 @@ function buildSecureClient(SDKClass, envVarName, keyKwarg, methodPathToPatch = n
   class SecurePlatformProxy extends SDKClass {
     constructor(opts = {}) {
       const encodedKey = process.env[envVarName] || '';
-      const secret = String(
-        process.env.RANBVAL_PROJECT_SECRET ||
-        process.env.RANBVAL_VAULT_SECRET ||
-        '',
-      ).trim();
+      let secret = String(process.env.RANBVAL_PROJECT_SECRET || '').trim();
+      if (!secret && process.env.RANBVAL_VAULT_SECRET) {
+        process.stderr.write(
+          '[Ranbval] DeprecationWarning: RANBVAL_VAULT_SECRET is deprecated. ' +
+          'Rename it to RANBVAL_PROJECT_SECRET.\n',
+        );
+        secret = String(process.env.RANBVAL_VAULT_SECRET).trim();
+      }
       const host = process.env.RANBVAL_HOST || DEFAULT_RANBVAL_HOST;
 
       if (!encodedKey) {

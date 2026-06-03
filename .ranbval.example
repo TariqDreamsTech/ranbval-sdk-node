@@ -1,0 +1,16 @@
+# Ranbval SDK — example .ranbval file
+# Copy this to .ranbval and fill in your values.
+# Add .ranbval.local and .ranbval.*.local to .gitignore.
+
+# Project secret — from the Ranbval dashboard (Project → Secret)
+MYAPP_PROJECT_SECRET=ranbval-proj-xxxxxxxxxxxxxxxxxxxxxxxxxx
+
+# Encrypted vault tokens — generated in the Ranbval dashboard
+MYAPP_OPENAI_KEY=ranbval.<noise>.<encrypted-blob>.ahsan
+MYAPP_STRIPE_KEY=ranbval.<noise>.<encrypted-blob>.ahsan
+
+# Optional: Ranbval API key (only needed for proxyRequest())
+RANBVAL_API_KEY=ranbvalahsantariq...
+
+# Optional: override the Ranbval server (self-hosted or local dev)
+# RANBVAL_HOST=http://localhost:8016
