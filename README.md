@@ -1,4 +1,4 @@
-# ranbval-sdk
+# ranbval-sdk `v0.10.1`
 
 [![npm version](https://img.shields.io/npm/v/ranbval-sdk.svg)](https://www.npmjs.com/package/ranbval-sdk)
 [![Node.js](https://img.shields.io/node/v/ranbval-sdk.svg)](https://nodejs.org)
