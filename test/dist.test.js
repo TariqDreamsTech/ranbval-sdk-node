@@ -37,20 +37,20 @@ if (!fs.existsSync(distPath)) {
     process.env.RANBVAL_SKIP_REPO_CHECK = '1';
     const token = buildVaultToken('sk-dist-roundtrip', 'ranbval-proj-dist');
     const out = safeDecrypt(token, 'ranbval-proj-dist');
-    assert.strictEqual(out.use(), 'sk-dist-roundtrip');
+    assert.strictEqual(String(out.use()), 'sk-dist-roundtrip');
   });
 
   test('dist: SecretString blocks display', () => {
     const s = new SecretString('top-secret');
     assert.strictEqual(String(s), '[ranbval:secret]');
     assert.strictEqual(JSON.stringify({ s }), '{"s":"[ranbval:secret]"}');
-    assert.strictEqual(s.use(), 'top-secret');
+    assert.strictEqual(String(s.use()), 'top-secret');
   });
 
   test('dist: decryptKey via env prefix discovery', () => {
     process.env.RANBVAL_SKIP_REPO_CHECK = '1';
     process.env.RANBVAL_PROJECT_SECRET = 'ranbval-proj-dist-env';
     process.env.MY_DIST_KEY = buildVaultToken('sk-dist-env', 'ranbval-proj-dist-env');
-    assert.strictEqual(decryptKey('MY_DIST_KEY').use(), 'sk-dist-env');
+    assert.strictEqual(String(decryptKey('MY_DIST_KEY').use()), 'sk-dist-env');
   });
 }
