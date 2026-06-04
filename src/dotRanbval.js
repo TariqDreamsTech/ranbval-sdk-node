@@ -11,6 +11,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { installOutputGuards } = require('./secretString');
 
 /**
  * Which mode-specific file to merge: `development` | `production` | custom.
@@ -201,6 +202,10 @@ function loadRanbval(pathArg, opts = {}) {
       process.env.RANBVAL_PROJECT_PREFIX = prefix;
     }
   }
+
+  // Patch console.* and process.stdout.write so that passing a _ProtectedValue
+  // (the return of SecretString.use()) to any output function raises a PermissionError.
+  installOutputGuards();
 
   return true;
 }
