@@ -70,7 +70,7 @@ That's the core pattern. Your `.ranbval` file lives in the project root (or any 
 
 ## How it works
 
-1. You create a project in the [Ranbval dashboard](https://www.ranbval.com) and copy its project secret.
+1. You create a project in the [Ranbval dashboard](https://secret.ranbval.com) and copy its project secret.
 2. You paste API keys (OpenAI, Stripe, etc.) into the dashboard — it returns encrypted vault tokens.
 3. You put those tokens in a `.ranbval` file next to your code.
 4. At runtime `loadRanbval()` loads the file into `process.env`. Calling `decryptKey()` decrypts a single token on demand using AES-256-GCM + PBKDF2.
@@ -414,7 +414,7 @@ Both assert functions throw if the current repo is not on the allowlist. Set `RA
 
 | Variable | Effect |
 |---|---|
-| `RANBVAL_HOST` | Override the Ranbval API host (default: `https://api.ranbval.com`) |
+| `RANBVAL_HOST` | Override the Ranbval API host (default: `https://api.secret.ranbval.com`) |
 | `RANBVAL_PROJECT_SECRET` | Default project secret used when prefix-based discovery finds nothing |
 | `RANBVAL_API_KEY` | SDK API key required by `proxyRequest()` |
 | `RANBVAL_SKIP_REPO_CHECK=1` | Bypass the git-origin allowlist check |
@@ -515,7 +515,7 @@ Tests use Node's built-in `node:test` runner — no additional test framework is
 
 ## Links
 
-- Website: [https://www.ranbval.com](https://www.ranbval.com)
+- Website: [https://secret.ranbval.com](https://secret.ranbval.com)
 - npm: [https://www.npmjs.com/package/ranbval-sdk](https://www.npmjs.com/package/ranbval-sdk)
 - Issues: [https://github.com/TariqDreamsTech/ranbval-sdk-node/issues](https://github.com/TariqDreamsTech/ranbval-sdk-node/issues)
 - Changelog: [CHANGELOG.md](CHANGELOG.md)

@@ -1,6 +1,6 @@
 {
   "name": "ranbval-sdk",
-  "version": "0.10.1",
+  "version": "0.11.0",
   "description": "Keep API secrets out of plaintext config: layered .ranbval* env files, decrypt vault tokens only when used, optional usage telemetry — minimal deps, your own HTTP/SDK stack.",
   "main": "dist/index.js",
   "files": [
@@ -40,10 +40,10 @@
   "bugs": {
     "url": "https://github.com/TariqDreamsTech/ranbval-sdk-node/issues"
   },
-  "homepage": "https://www.ranbval.com",
+  "homepage": "https://secret.ranbval.com",
   "funding": {
     "type": "website",
-    "url": "https://www.ranbval.com"
+    "url": "https://secret.ranbval.com"
   },
   "devDependencies": {
     "esbuild": "^0.28.0"

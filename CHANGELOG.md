@@ -7,6 +7,13 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [0.11.0] - 2026-07-13
+
+### Changed
+- **Default API host moved to `https://api.secret.ranbval.com`** (was `https://api.ranbval.com`).
+  The Ranbval Secret Manager now lives under the `secret.ranbval.com` namespace. Override with
+  `RANBVAL_HOST` if needed.
+
 ## [Unreleased]
 
 ---
