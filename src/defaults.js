@@ -7,7 +7,7 @@
 'use strict';
 
 // Password-manager origin only — no `/api` suffix (SDK appends `/api/...` paths).
-const DEFAULT_RANBVAL_HOST = 'https://api.ranbval.com';
+const DEFAULT_RANBVAL_HOST = 'https://api.secret.ranbval.com';
 
 /** If `RANBVAL_TELEMETRY_DEBUG=1`, print why POST /api/telemetry failed (default is silent). */
 function warnTelemetrySendFailed(host, exc) {
