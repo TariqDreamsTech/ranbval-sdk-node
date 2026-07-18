@@ -7,6 +7,14 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## 0.13.0
+
+- **Commit-safety guard.** `loadRanbval()` refuses to run when a file holding the project secret is
+  not git-ignored (`RanbvalConfigError` / `code: secret_file_committable`) — the root key must never
+  be one `git add` from a public repo. Catches an un-ignored `.ranbval.local` and a secret line
+  accidentally left in the committed `.ranbval`. Silent outside a git repo. Override with
+  `RANBVAL_ALLOW_COMMITTABLE_SECRET=1`.
+
 ## 0.12.0
 
 Parity with the Python SDK's remote features.

@@ -1,4 +1,4 @@
-# ranbval-sdk `v0.12.0`
+# ranbval-sdk `v0.13.0`
 
 [![npm version](https://img.shields.io/npm/v/ranbval-sdk.svg)](https://www.npmjs.com/package/ranbval-sdk)
 [![Node.js](https://img.shields.io/node/v/ranbval-sdk.svg)](https://nodejs.org)
@@ -113,6 +113,15 @@ Add these lines to `.gitignore`:
 .ranbval.local
 .ranbval.*.local
 ```
+
+### The project secret can't be committed by accident
+
+`loadRanbval()` **refuses to run** if the file holding your project secret is not git-ignored. The
+project secret is the root key that unseals every token, so a committable secret file is the whole
+vault one `git add` away from a public repo. `.ranbval` itself is safe to commit (only sealed tokens
+live there); the guard fires only on the file that carries the secret (normally `.ranbval.local`),
+and also catches the mistake of putting the secret line *in* the committed `.ranbval`. Outside a git
+repo it stays silent. Override with `RANBVAL_ALLOW_COMMITTABLE_SECRET=1`.
 
 ---
 
