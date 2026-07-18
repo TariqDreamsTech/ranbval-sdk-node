@@ -159,12 +159,62 @@ function _normalizeProjectName(name) {
 function loadRanbval(pathArg, opts = {}) {
   const {
     mode = null,
+    environment = null,
     start = null,
     override = false,
     projectSecret = null,
     projectName = null,
+    remote = false,
+    apiKey = null,
+    host = null,
   } = opts || {};
 
+  // Shared tail: apply the merged {key: value} into process.env, then the project secret / name and
+  // the output guards. Used by BOTH the local-file and remote paths so they behave identically.
+  const applyMerged = (merged) => {
+    for (const [key, value] of Object.entries(merged)) {
+      if (override || process.env[key] == null || process.env[key] === '') {
+        process.env[key] = value;
+      }
+    }
+
+    if (projectSecret != null) {
+      const ps = String(projectSecret).trim();
+      if (override || !process.env.RANBVAL_PROJECT_SECRET) {
+        process.env.RANBVAL_PROJECT_SECRET = ps;
+      }
+    }
+
+    if (projectName != null) {
+      const prefix = _normalizeProjectName(projectName);
+      if (override || !process.env.RANBVAL_PROJECT_NAME) {
+        process.env.RANBVAL_PROJECT_NAME = String(projectName);
+      }
+      if (override || !process.env.RANBVAL_PROJECT_PREFIX) {
+        process.env.RANBVAL_PROJECT_PREFIX = prefix;
+      }
+    }
+
+    // Patch console.* / process.stdout.write so passing a _ProtectedValue (the return of
+    // SecretString.use()) to any output function raises.
+    installOutputGuards();
+    return true;
+  };
+
+  // ── Remote: fetch the env-set from the control plane. fetch() is async, so this path returns a
+  //    Promise<boolean> — use `await loadRanbval({ remote: true, ... })`. ──
+  if (remote) {
+    // Lazily required so the local path pulls in nothing network-related.
+    const { fetchEnvSet } = require('./remote');
+    return fetchEnvSet({
+      projectSecret,
+      apiKey,
+      environment: environment != null ? environment : mode,
+      host,
+    }).then((merged) => applyMerged(merged));
+  }
+
+  // ── Local files (synchronous). ──
   let merged = {};
   if (pathArg) {
     if (!_isFile(pathArg)) return false;
@@ -172,7 +222,9 @@ function loadRanbval(pathArg, opts = {}) {
   } else {
     const root = findRanbvalDirectory(start);
     if (!root) return false;
-    const m = resolveRanbvalMode(mode);
+    // `mode` is the older name; `environment` is preferred. mode wins if both are given, matching
+    // the Python SDK.
+    const m = resolveRanbvalMode(mode != null ? mode : environment);
     const layers = _layerPaths(root, m);
     if (layers.length === 0) return false;
     for (const lp of layers) {
@@ -180,34 +232,7 @@ function loadRanbval(pathArg, opts = {}) {
     }
   }
 
-  for (const [key, value] of Object.entries(merged)) {
-    if (override || process.env[key] == null || process.env[key] === '') {
-      process.env[key] = value;
-    }
-  }
-
-  if (projectSecret != null) {
-    const ps = String(projectSecret).trim();
-    if (override || !process.env.RANBVAL_PROJECT_SECRET) {
-      process.env.RANBVAL_PROJECT_SECRET = ps;
-    }
-  }
-
-  if (projectName != null) {
-    const prefix = _normalizeProjectName(projectName);
-    if (override || !process.env.RANBVAL_PROJECT_NAME) {
-      process.env.RANBVAL_PROJECT_NAME = String(projectName);
-    }
-    if (override || !process.env.RANBVAL_PROJECT_PREFIX) {
-      process.env.RANBVAL_PROJECT_PREFIX = prefix;
-    }
-  }
-
-  // Patch console.* and process.stdout.write so that passing a _ProtectedValue
-  // (the return of SecretString.use()) to any output function raises a PermissionError.
-  installOutputGuards();
-
-  return true;
+  return applyMerged(merged);
 }
 
 /**

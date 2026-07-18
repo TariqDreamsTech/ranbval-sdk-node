@@ -1,4 +1,4 @@
-# ranbval-sdk `v0.10.1`
+# ranbval-sdk `v0.12.0`
 
 [![npm version](https://img.shields.io/npm/v/ranbval-sdk.svg)](https://www.npmjs.com/package/ranbval-sdk)
 [![Node.js](https://img.shields.io/node/v/ranbval-sdk.svg)](https://nodejs.org)
@@ -18,6 +18,8 @@ Ranbval SDK for Node.js lets you store encrypted vault tokens in `.ranbval` file
 - [.ranbval file format](#ranbval-file-format)
 - [API reference](#api-reference)
   - [loadRanbval](#loadranbvalpath-options)
+  - [fetchEnvSet / pushEnv](#fetchenvsetoptions--pushenvname-value-options)
+  - [isPublic / isSecret / isProxy](#ispublicname--issecretname--isproxyname)
   - [decryptKey](#decryptkeyenvvar)
   - [safeDecrypt](#safedecrypttoken-projectsecret)
   - [SecretString](#secretstring)
@@ -131,24 +133,68 @@ loadRanbval('/app/config/.ranbval');
 
 // With options
 loadRanbval(null, {
-  mode: 'staging',          // override mode detection
-  override: true,           // overwrite existing process.env values
-  projectSecret: 's3cr3t',  // inline project secret (skip env lookup)
-  projectName: 'myapp',     // project name prefix for env var discovery
+  environment: 'production', // which stage to load (local: .ranbval.production)
+  override: true,            // overwrite existing process.env values
+  projectSecret: 's3cr3t',   // inline project secret (skip env lookup)
+  projectName: 'myapp',      // project name prefix for env var discovery
 });
+
+// Remote: pull the env-set from the control plane instead of reading local files.
+// fetch() is async, so the remote path returns a Promise — await it.
+await loadRanbval(null, { remote: true, environment: 'production' });     // owner (project secret in env)
+await loadRanbval(null, { remote: true, apiKey: 'ranbval-dev-…' });      // teammate with a developer token
 ```
 
 **Options:**
 
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `mode` | `string` | auto-detected | Override `RANBVAL_ENV` / `ENVIRONMENT` / `ENV` mode detection |
+| `environment` | `string` | auto | Which stage to load — `"development"`, `"staging"`, `"production"`, … Works for local files (merges `.ranbval.{environment}`) **and** `remote: true`. |
+| `mode` | `string` | auto | Older alias for `environment`; wins if both are given. Falls back to `RANBVAL_ENV` / `ENVIRONMENT` / `ENV`. |
+| `remote` | `boolean` | `false` | Fetch the env-set from the control plane instead of local files. Requires `projectSecret` (owner) or `apiKey` (developer). **Returns a `Promise` — `await` it.** |
+| `apiKey` | `string` | — | A `ranbval-dev-…` developer token, for a teammate fetching config remotely. |
+| `host` | `string` | — | Override the control-plane host. Defaults to `api.secret.ranbval.com`. |
 | `start` | `string` | `process.cwd()` | Directory to start searching for `.ranbval` files |
 | `override` | `boolean` | `false` | If `true`, overwrite variables already set in `process.env` |
-| `projectSecret` | `string` | — | Inline project secret; skips env var lookup |
+| `projectSecret` | `string` | — | Inline project secret (also the owner credential for `remote: true`); skips env var lookup |
 | `projectName` | `string` | — | Prefix used to look up `{NAME}_PROJECT_SECRET` in env |
 
-Returns `void`. Throws if a file is found but cannot be parsed.
+Returns `true` when at least one file was loaded (or the remote fetch succeeded), `false` otherwise. With `remote: true`, returns `Promise<boolean>`.
+
+---
+
+### `fetchEnvSet(options?)` · `pushEnv(name, value, options?)`
+
+Talk to the Ranbval control plane directly — the same remote source `loadRanbval({ remote: true })` uses, without touching `process.env`.
+
+```js
+const { fetchEnvSet, pushEnv } = require('ranbval-sdk');
+
+// Owner pulls one environment's env-set (SECRET_/PROXY_ come back as encrypted ranbval.* tokens)
+const envs = await fetchEnvSet({ projectSecret: 'ranbval-proj-…', environment: 'production' });
+
+// A teammate uses a developer token instead of the project secret
+const dev = await fetchEnvSet({ apiKey: 'ranbval-dev-…', environment: 'development' });
+
+// A developer can add PUBLIC_ config — attributed to them in the dashboard
+await pushEnv('PUBLIC_FEATURE_FLAG', 'on', { apiKey: 'ranbval-dev-…', environment: 'staging' });
+```
+
+A **developer token** can pull the project's sealed `SECRET_`/`PROXY_` tokens and add `PUBLIC_` config, but the tokens stay ciphertext — decryption needs the project secret, which a developer token never carries. Creating `SECRET_`/`PROXY_` keys stays owner-only.
+
+---
+
+### `isPublic(name)` · `isSecret(name)` · `isProxy(name)`
+
+Prefix classification helpers — the same rule the SDK uses internally.
+
+```js
+const { isPublic, isSecret, isProxy } = require('ranbval-sdk');
+
+isPublic('PUBLIC_DATABASE_URL'); // true — plaintext config
+isSecret('SECRET_OPENAI_KEY');   // true — decrypted in-process
+isProxy('PROXY_STRIPE_KEY');     // true — never decrypted locally; only /execute can use it
+```
 
 ---
 

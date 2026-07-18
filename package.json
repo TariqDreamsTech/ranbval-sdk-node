@@ -1,6 +1,6 @@
 {
   "name": "ranbval-sdk",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "description": "Keep API secrets out of plaintext config: layered .ranbval* env files, decrypt vault tokens only when used, optional usage telemetry — minimal deps, your own HTTP/SDK stack.",
   "main": "dist/index.js",
   "files": [
@@ -28,7 +28,7 @@
     "aes-gcm",
     "pbkdf2"
   ],
-  "author": "Ahsan Tariq, Hussnain Tariq, Sundas Tariq",
+  "author": "Ahsan Tariq",
   "license": "Apache-2.0",
   "engines": {
     "node": ">=18.0.0"

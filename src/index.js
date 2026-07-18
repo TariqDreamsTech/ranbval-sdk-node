@@ -25,6 +25,8 @@ const { emitTelemetry, saltFromRanbvalToken } = require('./telemetry');
 const { SecretString } = require('./secretString');
 const { secureClient } = require('./integrations/factory');
 const { buildSecureClient } = require('./integrations/universal');
+const { fetchEnvSet, pushEnv } = require('./remote');
+const { isPublic, isSecret, isProxy, kindOf, isExempt } = require('./manifest');
 const {
   assertRepoAllowedForDecrypt,
   assertRepoAllowedForDecryptAsync,
@@ -45,6 +47,15 @@ module.exports = {
   findRanbvalDirectory,
   findRanbvalFile,
   resolveRanbvalMode,
+  // Remote config (control plane) — owner via projectSecret, developer via apiKey
+  fetchEnvSet,
+  pushEnv,
+  // Prefix classification
+  isPublic,
+  isSecret,
+  isProxy,
+  kindOf,
+  isExempt,
   // Secure proxy
   proxyRequest,
   ProxyError,

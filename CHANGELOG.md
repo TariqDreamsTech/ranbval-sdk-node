@@ -7,6 +7,22 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## 0.12.0
+
+Parity with the Python SDK's remote features.
+
+- **`fetchEnvSet()` / `pushEnv()`** — pull a project's env-set from the control plane, and add
+  `PUBLIC_` config, authenticated by the project secret (owner) or a `ranbval-dev-…` developer
+  token. A developer can pull sealed `SECRET_`/`PROXY_` tokens and add `PUBLIC_` values, but cannot
+  decrypt without the project secret; creating `SECRET_`/`PROXY_` keys stays owner-only.
+- **`loadRanbval({ remote: true, environment, apiKey, host })`** — load config from the control
+  plane instead of local files. The remote path is async (returns a `Promise`).
+- **`environment`** option on `loadRanbval` selects the stage for local files too, not just remote
+  (`mode` remains the older alias). Up to 10 named environments per project; each holds its own
+  value for the same variable name, and only the requested stage is fetched.
+- **`isPublic()` / `isSecret()` / `isProxy()` / `kindOf()` / `isExempt()`** — prefix classification
+  helpers, matching `ranbval_sdk.config.manifest`.
+
 ## [0.11.0] - 2026-07-13
 
 ### Changed
