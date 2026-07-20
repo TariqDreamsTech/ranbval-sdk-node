@@ -1,4 +1,4 @@
-# ranbval-sdk `v0.13.0`
+# ranbval-sdk `v0.14.0`
 
 [![npm version](https://img.shields.io/npm/v/ranbval-sdk.svg)](https://www.npmjs.com/package/ranbval-sdk)
 [![Node.js](https://img.shields.io/node/v/ranbval-sdk.svg)](https://nodejs.org)
@@ -26,6 +26,7 @@ Ranbval SDK for Node.js lets you store encrypted vault tokens in `.ranbval` file
   - [secureClient](#secureclientsdkclass-opts)
   - [buildSecureClient](#buildsecureclientsdkclass-envvarname-keykwarg-methodpathtopatch)
   - [proxyRequest](#proxyrequestopts)
+  - [planStatus](#planstatusoptions)
   - [emitTelemetry](#emittelemetryopts)
   - [Repo policy](#repo-policy)
 - [Environment variables](#environment-variables)
@@ -406,6 +407,53 @@ console.log(result.headers);  // response headers
 ```
 
 Throws `ProxyError` on non-2xx responses. `ProxyError` extends `Error` and exposes `.status` (number) and `.body` (string or object).
+
+On **429/402** — the plan's allowance is spent — it throws [`PlanLimitError`](#planstatusoptions) instead, so "you have run out" is distinguishable from "the proxy is down":
+
+```js
+const { proxyRequest, PlanLimitError } = require('ranbval-sdk');
+
+try {
+  await proxyRequest({ token: 'PROXY_OPENAI', targetUrl: '...', body: payload });
+} catch (e) {
+  if (e instanceof PlanLimitError) {
+    console.warn(`${e.plan}: ${e.used}/${e.limit} requests used this ${e.period}`);
+    // back off, queue for next month, or prompt an upgrade — don't retry into the wall
+  }
+}
+```
+
+---
+
+### `planStatus(options?)`
+
+What plan this project is on, what it allows, and how much is used this month — using the credentials the SDK already has.
+
+```js
+const { planStatus } = require('ranbval-sdk');
+
+const s = await planStatus({ projectSecret: 'ranbval-proj-…' });  // or { apiKey: 'ranbval-dev-…' }
+
+s.plan;                        // 'free'
+s.plan_name;                   // 'Free'
+s.limits;                      // { projects: 1, secrets: 5, requests_month: 1000 }
+s.usage.requests_month;        // 412
+s.usage.requests_remaining;    // 588
+s.usage.period;                // '2026-07'
+s.enforced;                    // false while billing is switched off
+```
+
+A `null` limit means **unlimited** on that plan.
+
+With a **developer token**, `usage.projects` and `usage.secrets` come back as `null` — those counts
+span the owner's other projects, which a scoped token has no business seeing. The request meter is
+still reported, because that is what decides whether your own proxy calls go through.
+
+**Options:** `projectSecret`, `apiKey`, `host`, `timeout` (seconds, default `10`).
+
+**`PlanLimitError`** carries the same numbers as properties — `used`, `limit`, `period`, `plan`, `kind` (`'requests'` | `'quota'`) and `code` — rather than a stringified object.
+
+**This reports; it does not enforce.** The SDK runs on your machine, so any limit it checked here you could simply delete — every limit is applied server-side, on the call itself. `planStatus()` is for visibility: showing usage in your own tooling, or warning before a long batch job. There is nothing to gain by calling it as a pre-flight check, and nothing lost by skipping it.
 
 ---
 

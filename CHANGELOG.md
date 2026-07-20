@@ -7,6 +7,48 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [0.14.0] - 2026-07-20
+
+### Added
+
+- **`planStatus()`** — parity with the Python SDK's `plan_status()`. Reports the project's plan, its
+  limits, and this month's usage, using the credentials the SDK already has. A `null` limit means
+  unlimited on that plan.
+
+  ```js
+  const { planStatus } = require('ranbval-sdk');
+
+  const s = await planStatus({ projectSecret: 'ps_...' });
+  s.plan;                        // 'free'
+  s.limits.requests_month;       // 1000
+  s.usage.requests_remaining;    // 588
+  s.enforced;                    // false while billing is switched off
+  ```
+
+- **`PlanLimitError`** — thrown instead of `ProxyError` when a proxied call is refused because the
+  plan's allowance is spent (HTTP 429/402). Carries `used`, `limit`, `period`, `plan` and `kind` as
+  properties rather than a stringified object:
+
+  ```js
+  const { PlanLimitError } = require('ranbval-sdk');
+
+  try {
+    await proxyRequest({ ... });
+  } catch (e) {
+    if (e instanceof PlanLimitError) {
+      console.warn(`${e.used}/${e.limit} requests used this ${e.period}`);
+    }
+  }
+  ```
+
+### Note on enforcement
+
+The SDK reports limits; it does not apply them. It runs on the customer's machine, so any check it
+performed locally could simply be removed — every limit is enforced server-side, on the call itself.
+`planStatus()` is for visibility, not as a pre-flight permission check.
+
+---
+
 ## [0.13.0] - 2026-07-18
 
 - **Commit-safety guard.** `loadRanbval()` refuses to run when a file holding the project secret is

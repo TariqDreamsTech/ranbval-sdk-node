@@ -31,6 +31,8 @@
 const { DEFAULT_RANBVAL_HOST } = require('./defaults');
 const { _findProjectSecretFor } = require('./crypto');
 
+const { PlanLimitError } = require('./planError');
+
 class ProxyError extends Error {
   constructor(message) {
     super(message);
@@ -140,7 +142,23 @@ async function proxyRequest({
   }
 
   if (!resp.ok) {
-    let detail = parsed && parsed.detail ? parsed.detail : (parsed && parsed.raw) || text;
+    const raw = parsed && parsed.detail ? parsed.detail : (parsed && parsed.raw) || text;
+
+    // 429/402 mean the plan's allowance is spent — a different situation from a broken proxy, and
+    // one a caller may want to handle (back off, upgrade, switch key) rather than retry into a
+    // wall. The server sends a structured detail; surface it as fields, not a stringified object.
+    if ((resp.status === 429 || resp.status === 402) && raw && typeof raw === 'object') {
+      throw new PlanLimitError(String(raw.message || raw.error || 'Plan limit reached.'), {
+        used: raw.used,
+        limit: raw.limit,
+        period: raw.period,
+        plan: raw.plan,
+        kind: resp.status === 429 ? 'requests' : 'quota',
+        code: String(raw.error || 'plan_limit_reached'),
+      });
+    }
+
+    let detail = raw;
     if (typeof detail !== 'string') {
       try { detail = JSON.stringify(detail); } catch { detail = String(detail); }
     }
@@ -149,4 +167,5 @@ async function proxyRequest({
   return parsed;
 }
 
-module.exports = { proxyRequest, ProxyError };
+module.exports = {
+  PlanLimitError, proxyRequest, ProxyError };

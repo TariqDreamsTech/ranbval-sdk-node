@@ -130,4 +130,27 @@ async function pushEnv(name, value, opts = {}) {
   return _post(`${_host(host)}/api/envs/add`, payload, timeout);
 }
 
-module.exports = { fetchEnvSet, pushEnv, RanbvalConfigError };
+/**
+ * What plan this project is on, what it allows, and how much is used this month.
+ *
+ *   {plan: 'free', plan_name: 'Free', has_active_subscription: false,
+ *    limits: {projects: 1, secrets: 5, requests_month: 1000},
+ *    usage:  {projects: 1, secrets: 3, requests_month: 412,
+ *             requests_remaining: 588, period: '2026-07'}}
+ *
+ * A `null` limit means unlimited on this plan.
+ *
+ * This is for visibility — showing usage in your own tooling, or warning before a batch job runs
+ * into a cap. It is not a permission check: every limit is enforced by the server on the call
+ * itself, so there is nothing to gain by consulting this first, and nothing lost by skipping it.
+ *
+ * @param {{projectSecret?: string, apiKey?: string, host?: string, timeout?: number}} [opts]
+ * @returns {Promise<object>}
+ */
+async function planStatus(opts = {}) {
+  const { projectSecret, apiKey, host, timeout = 10 } = opts || {};
+  const payload = _credential(projectSecret, apiKey);
+  return _post(`${_host(host)}/api/envs/plan-status`, payload, timeout);
+}
+
+module.exports = { fetchEnvSet, planStatus, pushEnv, RanbvalConfigError };

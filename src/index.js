@@ -13,7 +13,7 @@
 'use strict';
 
 const { safeDecrypt, decryptKey, deriveKey } = require('./crypto');
-const { proxyRequest, ProxyError } = require('./proxy');
+const { proxyRequest, PlanLimitError, ProxyError } = require('./proxy');
 const {
   loadRanbval,
   getProjectKey,
@@ -25,7 +25,7 @@ const { emitTelemetry, saltFromRanbvalToken } = require('./telemetry');
 const { SecretString } = require('./secretString');
 const { secureClient } = require('./integrations/factory');
 const { buildSecureClient } = require('./integrations/universal');
-const { fetchEnvSet, pushEnv } = require('./remote');
+const { fetchEnvSet, planStatus, pushEnv } = require('./remote');
 const { isPublic, isSecret, isProxy, kindOf, isExempt } = require('./manifest');
 const {
   assertRepoAllowedForDecrypt,
@@ -49,6 +49,7 @@ module.exports = {
   resolveRanbvalMode,
   // Remote config (control plane) — owner via projectSecret, developer via apiKey
   fetchEnvSet,
+  planStatus,
   pushEnv,
   // Prefix classification
   isPublic,
@@ -58,6 +59,7 @@ module.exports = {
   isExempt,
   // Secure proxy
   proxyRequest,
+  PlanLimitError,
   ProxyError,
   // Telemetry
   emitTelemetry,
