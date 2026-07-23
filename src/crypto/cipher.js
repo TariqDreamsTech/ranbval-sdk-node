@@ -16,8 +16,8 @@
 
 const crypto = require('node:crypto');
 
-const { DEFAULT_RANBVAL_HOST } = require('./defaults');
-const { assertRepoAllowedForDecrypt } = require('./repoPolicy');
+const { DEFAULT_RANBVAL_HOST } = require('../_internal/defaults');
+const { assertRepoAllowedForDecrypt } = require('../policy/repo');
 const { SecretString } = require('./secretString');
 
 const PBKDF2_ITERATIONS = 100000;

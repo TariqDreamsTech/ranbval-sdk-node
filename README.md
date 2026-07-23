@@ -1,4 +1,4 @@
-# ranbval-sdk `v0.14.0`
+# ranbval-sdk `v0.15.0`
 
 [![npm version](https://img.shields.io/npm/v/ranbval-sdk.svg)](https://www.npmjs.com/package/ranbval-sdk)
 [![Node.js](https://img.shields.io/node/v/ranbval-sdk.svg)](https://nodejs.org)
@@ -45,6 +45,29 @@ npm install ranbval-sdk
 ```
 
 Node 18 or later is required. No production dependencies — only Node built-ins (`crypto`, `fs`, `path`, `https`).
+
+Installing also puts a `ranbval` command on your `PATH` (usable as `npx ranbval` too):
+
+```bash
+ranbval init            # scaffold a starter .ranbval, gitignore .ranbval.local
+ranbval check           # lint it: classification, competing loaders, plaintext-in-SECRET_
+ranbval run -- npm start  # load .ranbval into the environment, then run the command
+```
+
+`ranbval run` is the no-code-change adoption path: put your `PUBLIC_`/`SECRET_` names in `.ranbval` and prefix your existing start command. Secrets live only in that process and its child — nothing is written to disk, no value is printed.
+
+---
+
+## CLI, enforcement, audit, declarative config
+
+As of `v0.15.0` the package mirrors the Python SDK's layout and its once-Python-only subsystems:
+
+- **Extraction enforcement** (strict by default). A revealed secret refuses to be read apart — `v[0]`, `v.slice()`, `[...v]` throw `RanbvalSecurityError` — while `` `Bearer ${v}` `` and passing it to an SDK work unchanged. `setEnforcement(false)` reverts to permissive; `isEnforced()` reports the state. *Honest limit:* this stops the naive vectors only — anyone running code in the process can still reach the plaintext. Only `PROXY_` secrets are absolute.
+- **Access audit log** — `getAuditLog()`, `clearAuditLog()`, `auditScope(fn)`. Every `.use()` is recorded with label, timestamp and calling file:line; never the value.
+- **Declarative config** — `defineConfig({ openai: Secret('SECRET_OPENAI_KEY') })`; fields decrypt lazily and cache. `Secret(name, { reveal: true })` yields a plain string.
+- **Typed errors** — everything extends `RanbvalError` with a stable `.code`; catch the base to catch them all.
+
+> **Parity note.** The imperative access helpers (`Vault`, `inject`, `public`, `proxyToken`) and the Live Monitor hookup (`installAccessMonitor`) are still Python-only. Use `decryptKey`/`loadRanbval`, `proxyRequest`, and `secureClient` here.
 
 ---
 
@@ -629,4 +652,4 @@ Tests use Node's built-in `node:test` runner — no additional test framework is
 
 Apache-2.0 — see [LICENSE](LICENSE) for the full text.
 
-Copyright 2024 Ahsan Tariq, Hussnain Tariq, Sundas Tariq
+Copyright 2024-2026 Ahsan Tariq, Hussnain Tariq, Sundas Tariq

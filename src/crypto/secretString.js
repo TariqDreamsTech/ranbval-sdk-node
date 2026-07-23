@@ -40,6 +40,8 @@
 'use strict';
 
 const util = require('util');
+const enforcement = require('./enforcement');
+const audit = require('./audit');
 
 // WeakMap keeps wiped state private — cannot be tampered via property access.
 const _wiped = new WeakMap();
@@ -116,6 +118,55 @@ class _ProtectedValue {
   toJSON() {
     return '[ranbval:secret]';
   }
+}
+
+/**
+ * Wrap a revealed value so the extraction routes are watched.
+ *
+ * Reading it as a whole string — a template literal, passing it to an SDK — is what the value is
+ * *for*, so those pass straight through. What gets stopped is reading it apart: iterating it,
+ * indexing it, slicing it, or reaching for the raw buffer. Those have no legitimate use and are
+ * exactly how a value is lifted out of memory a character at a time.
+ *
+ * A Proxy is the only way to see a property read in JavaScript. It is not airtight — anyone in
+ * this process can call `String.prototype.charAt.call(v, 0)` and bypass the trap entirely — which
+ * is why the module docstring says PROXY_ secrets are the only absolute guarantee.
+ */
+const _SLICERS = new Set(['slice', 'substring', 'substr', 'charAt', 'charCodeAt', 'at', 'codePointAt', 'split']);
+
+function _guarded(protectedValue) {
+  return new Proxy(protectedValue, {
+    get(target, prop, receiver) {
+      if (prop === Symbol.iterator) {
+        return function* () {
+          enforcement.guardReveal('iteration');
+          yield* target[_rawSym];
+        };
+      }
+      if (typeof prop === 'string') {
+        // val[0], val[1], … — reading it out one character at a time.
+        if (/^\d+$/.test(prop)) {
+          enforcement.guardReveal('index');
+          return target[_rawSym][Number(prop)];
+        }
+        if (_SLICERS.has(prop)) {
+          enforcement.guardReveal('slice');
+          return target[_rawSym][prop].bind(target[_rawSym]);
+        }
+      }
+      if (prop === _rawSym) {
+        // Nothing outside this module has a reason to want the backing store itself.
+        // (It is a module-private Symbol, so in practice nothing outside *can* name it.)
+        enforcement.guardReveal('buffer_read');
+      }
+
+      const value = Reflect.get(target, prop, receiver);
+      // The value's own methods read the backing store through `this`. Left unbound, `this` would
+      // be the proxy and every coercion would trip the buffer_read trap above — the guard would
+      // fire on the one path it is meant to allow. Bind them to the real object instead.
+      return typeof value === 'function' ? value.bind(target) : value;
+    },
+  });
 }
 
 // ── Output guards ─────────────────────────────────────────────────────────────
@@ -282,7 +333,9 @@ class SecretString {
     if (_wiped.get(this)) {
       throw new Error('SecretString has been wiped and cannot be used again');
     }
-    return new _ProtectedValue(this._buf.toString('utf8'));
+    // Recorded before the value is handed over, so the log holds even if the caller then throws.
+    audit.recordAccess(this._label);
+    return _guarded(new _ProtectedValue(this._buf.toString('utf8')));
   }
 
   /** Length of the secret in bytes (safe — does not reveal content). */

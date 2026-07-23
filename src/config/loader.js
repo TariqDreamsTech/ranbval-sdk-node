@@ -11,7 +11,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { installOutputGuards } = require('./secretString');
+const { installOutputGuards } = require('../crypto/secretString');
 
 /**
  * Which mode-specific file to merge: `development` | `production` | custom.
@@ -272,7 +272,7 @@ function loadRanbval(pathArg, opts = {}) {
   //    Promise<boolean> — use `await loadRanbval({ remote: true, ... })`. ──
   if (remote) {
     // Lazily required so the local path pulls in nothing network-related.
-    const { fetchEnvSet } = require('./remote');
+    const { fetchEnvSet } = require('../remote/client');
     return fetchEnvSet({
       projectSecret,
       apiKey,
@@ -336,6 +336,9 @@ function getProjectKey(envVar) {
 }
 
 module.exports = {
+  // Underscored: internal, but the CLI's `check` needs to read a file without loading it into the
+  // environment — the same split ranbval_sdk.cli.check makes on the Python side.
+  _parseRanbvalFile,
   resolveRanbvalMode,
   findRanbvalDirectory,
   findRanbvalFile,

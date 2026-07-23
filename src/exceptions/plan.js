@@ -10,22 +10,26 @@
  * police anything locally.
  */
 
-class PlanLimitError extends Error {
+'use strict';
+
+const { RanbvalError } = require('./base');
+
+class PlanLimitError extends RanbvalError {
   /**
    * @param {string} message
    * @param {{used?: number, limit?: number, period?: string, plan?: string,
    *          kind?: string, code?: string}} [fields]
    */
   constructor(message, fields = {}) {
-    super(message);
-    this.name = 'PlanLimitError';
+    super(message, fields);
     this.used = fields.used;        // how much of the allowance is consumed
     this.limit = fields.limit;      // the allowance on the current plan
     this.period = fields.period;    // billing window, e.g. "2026-07"
     this.plan = fields.plan;        // plan key, e.g. "free"
     this.kind = fields.kind;        // "requests" | "secrets" | "projects"
-    this.code = fields.code || 'plan_limit_reached';
   }
 }
+
+PlanLimitError.defaultCode = 'plan_limit_reached';
 
 module.exports = { PlanLimitError };

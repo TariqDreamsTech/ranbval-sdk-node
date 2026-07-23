@@ -7,6 +7,98 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [0.15.0] - 2026-07-23
+
+Structural release: the package is reorganised to mirror the Python SDK file-for-file, and the
+subsystems that were Python-only are now here too. **No breaking changes** — every previously
+exported name still resolves; this is all additive.
+
+### Package layout now mirrors the Python SDK
+
+Source moved into the same package tree the Python SDK uses, so the two read the same:
+
+```
+src/
+├── _internal/defaults.js
+├── config/{loader,manifest,declarative}.js
+├── crypto/{cipher,secretString,enforcement,audit}.js
+├── exceptions/{base,config,crypto,plan,policy,proxy}.js
+├── integrations/{proxy,factory,universal}.js
+├── policy/repo.js
+├── remote/client.js
+├── telemetry/{client,sampling}.js
+└── cli/{init,check,run}.js
+```
+
+The public `require('ranbval-sdk')` surface is unchanged by the move.
+
+### Added — a typed error hierarchy
+
+Every error now extends a common `RanbvalError` with a stable `.code` and a structured `.context`,
+matching Python. `catch (e) { if (e instanceof RanbvalError) … }` now covers everything the SDK
+throws.
+
+- `RanbvalError`, `RanbvalConfigError`, `MissingKeyError`, `RanbvalDecryptError`,
+  `RanbvalSecurityError`, `RepoNotAllowedError`, `RepoPolicyError`. `PlanLimitError` and
+  `ProxyError` now extend it too (previously plain `Error`s) — still exported by the same names.
+
+### Added — extraction enforcement (strict by default)
+
+`setEnforcement()` / `isEnforced()`. A revealed secret now refuses to be read apart — iterating,
+indexing or slicing it throws `RanbvalSecurityError` — while the documented uses (template literals,
+passing to an SDK) work unchanged.
+
+```js
+const v = decryptKey('SECRET_OPENAI_KEY').use();
+`Bearer ${v}`     // ✅ works
+v[0]              // ✗ RanbvalSecurityError
+[...v]            // ✗ RanbvalSecurityError
+```
+
+Honest limit: this stops the naive vectors. Anyone running code in the process can still reach the
+plaintext (`String.prototype.charAt.call(v, 0)` sidesteps the guard). Only `PROXY_` secrets, whose
+plaintext never enters the process, are absolute.
+
+### Added — access audit log
+
+`getAuditLog()` / `clearAuditLog()` / `auditScope(fn)`. Every `.use()` is recorded with its label,
+a timestamp and the calling file and line — never the secret value.
+
+### Added — declarative config
+
+`defineConfig()` / `Secret()`. Declare secret names in one object; each field decrypts lazily on
+first read and caches.
+
+```js
+const Config = defineConfig({
+  openai: Secret('SECRET_OPENAI_KEY'),
+  stripe: Secret('SECRET_STRIPE_KEY', { reveal: true }),
+});
+Config.openai;   // SecretString, decrypted on first read
+```
+
+### Added — the `ranbval` CLI
+
+Installs a `ranbval` command (also `npx ranbval`):
+
+```
+ranbval init            create a starter .ranbval and gitignore .ranbval.local
+ranbval check           lint .ranbval: classification, competing loaders, value mismatches
+ranbval run -- CMD …    load .ranbval into the environment, then run CMD (no value ever printed)
+```
+
+### Added — adaptive telemetry sampling
+
+`AdaptiveSampler` bounds the telemetry send-rate under a hot decrypt loop — first use of a
+credential is sent immediately, repeats are aggregated into a weighted event — without ever
+suppressing usage.
+
+### Still Python-only (tracked for a later release)
+
+Full honesty on parity: the imperative access helpers (`Vault`, `inject`, `public`, `proxyToken`)
+and the Live Monitor hookup (`installAccessMonitor`) are not yet ported. The equivalents that exist
+on this side are `decryptKey`/`loadRanbval`, `proxyRequest`, and the `secureClient` factory.
+
 ## [0.14.0] - 2026-07-20
 
 ### Added

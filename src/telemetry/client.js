@@ -8,7 +8,7 @@ const os = require('node:os');
 const { execFileSync } = require('node:child_process');
 const { URL } = require('node:url');
 
-const { DEFAULT_RANBVAL_HOST, warnTelemetrySendFailed } = require('./defaults');
+const { DEFAULT_RANBVAL_HOST, warnTelemetrySendFailed } = require('../_internal/defaults');
 
 function _getGitRemote() {
   try {
@@ -34,7 +34,7 @@ function _getGitBranch() {
 
 function _sdkVersion() {
   try {
-    return require('../package.json').version || '';
+    return require('../../package.json').version || '';
   } catch {
     return '';
   }
