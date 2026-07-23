@@ -650,6 +650,6 @@ Tests use Node's built-in `node:test` runner — no additional test framework is
 
 ## License
 
-Apache-2.0 — see [LICENSE](LICENSE) for the full text.
+MIT — see [LICENSE](LICENSE) for the full text.
 
-Copyright 2024-2026 Ahsan Tariq, Hussnain Tariq, Sundas Tariq
+Copyright (c) 2024-2026 Ahsan Tariq, Hussnain Tariq, Sundas Tariq
