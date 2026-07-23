@@ -28,17 +28,11 @@
 
 'use strict';
 
-const { DEFAULT_RANBVAL_HOST } = require('./defaults');
-const { _findProjectSecretFor } = require('./crypto');
+const { DEFAULT_RANBVAL_HOST } = require('../_internal/defaults');
+const { _findProjectSecretFor } = require('../crypto/cipher');
 
-const { PlanLimitError } = require('./planError');
-
-class ProxyError extends Error {
-  constructor(message) {
-    super(message);
-    this.name = 'ProxyError';
-  }
-}
+const { PlanLimitError } = require('../exceptions/plan');
+const { ProxyError } = require('../exceptions/proxy');
 
 /**
  * Send an HTTP request through the Ranbval secure proxy.

@@ -1,9 +1,10 @@
 {
   "name": "ranbval-sdk",
-  "version": "0.14.0",
-  "description": "Keep API secrets out of plaintext config: layered .ranbval* env files, decrypt vault tokens only when used, optional usage telemetry — minimal deps, your own HTTP/SDK stack.",
+  "version": "0.15.0",
+  "description": "Secrets that refuse to be stolen: API keys sealed with AES-256-GCM that decrypt only when used, throw if anything tries to read them apart, log every access, and can run entirely server-side so the plaintext never touches your process. Zero production dependencies, plus a ranbval CLI.",
   "main": "dist/index.js",
   "files": [
+    "bin/",
     "dist/",
     "README.md",
     "LICENSE"
@@ -12,7 +13,7 @@
     ".": "./dist/index.js"
   },
   "scripts": {
-    "build": "esbuild src/index.js --bundle --platform=node --target=node18 --format=cjs --minify --legal-comments=none --outfile=dist/index.js && node -e \"require('fs').writeFileSync('dist/index.js', '/*! ranbval-sdk - Apache-2.0 - https://www.npmjs.com/package/ranbval-sdk */\\n' + require('fs').readFileSync('dist/index.js','utf8'))\"",
+    "build": "esbuild src/index.js --bundle --platform=node --target=node18 --format=cjs --minify --legal-comments=none --outfile=dist/index.js && node -e \"require('fs').writeFileSync('dist/index.js', '/*! ranbval-sdk - Apache-2.0 - https://www.npmjs.com/package/ranbval-sdk */\\n' + require('fs').readFileSync('dist/index.js','utf8'))\" && esbuild src/cli/index.js --bundle --platform=node --target=node18 --format=cjs --legal-comments=none --outfile=dist/cli.js",
     "prepublishOnly": "npm run build",
     "test": "node --test test/*.test.js",
     "example": "node examples/basic.js"
@@ -20,13 +21,29 @@
   "keywords": [
     "ranbval",
     "secrets",
+    "secret-manager",
+    "secrets-management",
     "api-keys",
-    "encryption",
+    "credentials",
     "vault",
-    "env",
-    "dotenv",
+    "encryption",
+    "aes-256-gcm",
     "aes-gcm",
-    "pbkdf2"
+    "pbkdf2",
+    "security",
+    "devsecops",
+    "dotenv",
+    "env",
+    "environment-variables",
+    "configuration",
+    "api-key-management",
+    "leak-detection",
+    "secret-scanning",
+    "secure-proxy",
+    "telemetry",
+    "cli",
+    "nodejs",
+    "openai"
   ],
   "author": "Ahsan Tariq",
   "license": "Apache-2.0",
@@ -43,9 +60,17 @@
   "homepage": "https://secret.ranbval.com",
   "funding": {
     "type": "website",
-    "url": "https://secret.ranbval.com"
+    "url": "https://ranbval.com"
   },
   "devDependencies": {
     "esbuild": "^0.28.0"
-  }
+  },
+  "bin": {
+    "ranbval": "bin/ranbval.js"
+  },
+  "contributors": [
+    "Hussnain Tariq",
+    "Sundas Tariq",
+    "Laiba Saleem"
+  ]
 }

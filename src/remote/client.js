@@ -10,7 +10,7 @@
 
 'use strict';
 
-const { DEFAULT_RANBVAL_HOST } = require('./defaults');
+const { DEFAULT_RANBVAL_HOST } = require('../_internal/defaults');
 
 class RanbvalConfigError extends Error {
   constructor(message, code) {

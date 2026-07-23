@@ -8,9 +8,9 @@
 
 'use strict';
 
-const { safeDecrypt } = require('../crypto');
-const { DEFAULT_RANBVAL_HOST } = require('../defaults');
-const { emitTelemetry } = require('../telemetry');
+const { safeDecrypt } = require('../crypto/cipher');
+const { DEFAULT_RANBVAL_HOST } = require('../_internal/defaults');
+const { emitTelemetry } = require('../telemetry/client');
 
 /**
  * Build a class that, when constructed, reads `envVarName`, decrypts it (if it
