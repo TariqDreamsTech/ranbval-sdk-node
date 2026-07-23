@@ -13,7 +13,7 @@
     ".": "./dist/index.js"
   },
   "scripts": {
-    "build": "esbuild src/index.js --bundle --platform=node --target=node18 --format=cjs --minify --legal-comments=none --outfile=dist/index.js && node -e \"require('fs').writeFileSync('dist/index.js', '/*! ranbval-sdk - Apache-2.0 - https://www.npmjs.com/package/ranbval-sdk */\\n' + require('fs').readFileSync('dist/index.js','utf8'))\" && esbuild src/cli/index.js --bundle --platform=node --target=node18 --format=cjs --legal-comments=none --outfile=dist/cli.js",
+    "build": "esbuild src/index.js --bundle --platform=node --target=node18 --format=cjs --minify --legal-comments=none --outfile=dist/index.js && node -e \"require('fs').writeFileSync('dist/index.js', '/*! ranbval-sdk - MIT - https://www.npmjs.com/package/ranbval-sdk */\\n' + require('fs').readFileSync('dist/index.js','utf8'))\" && esbuild src/cli/index.js --bundle --platform=node --target=node18 --format=cjs --legal-comments=none --outfile=dist/cli.js",
     "prepublishOnly": "npm run build",
     "test": "node --test test/*.test.js",
     "example": "node examples/basic.js"
@@ -46,7 +46,7 @@
     "openai"
   ],
   "author": "Ahsan Tariq",
-  "license": "Apache-2.0",
+  "license": "MIT",
   "engines": {
     "node": ">=18.0.0"
   },
