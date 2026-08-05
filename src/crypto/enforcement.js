@@ -71,6 +71,53 @@ function isEnforced() {
   return _enforced;
 }
 
+/**
+ * Run `fn` with enforcement set to `enabled`, then restore whatever it was.
+ *
+ * Some legitimate clients must take a credential apart — a signer, a driver. Those calls trip the
+ * guards, and the previous remedy was `setEnforcement(false)` for the whole process, which leaves
+ * every later line unguarded for the life of the app. Wrap only the handoff instead:
+ *
+ *     enforcementScope(false, () => {
+ *       client = new SomeClient(use.API_KEY);
+ *     });
+ *
+ * Honest limit: enforcement is a single process-wide flag, so the window is process-wide for its
+ * duration too. This is not per-async-context isolation — anything else running concurrently sees
+ * the relaxed setting. Keep the callback to the handoff, and use a PROXY_ secret when the value
+ * must never exist in the process at all.
+ *
+ * @template T
+ * @param {boolean} enabled
+ * @param {() => T} fn
+ * @returns {T}
+ */
+function enforcementScope(enabled, fn) {
+  const previous = _enforced;
+  _enforced = Boolean(enabled);
+  try {
+    return fn();
+  } finally {
+    _enforced = previous;
+  }
+}
+
+/**
+ * Methods that are audited but permitted.
+ *
+ * Blocking a credential's conversion to bytes bought no secrecy in the Python SDK — a template
+ * literal already returns the full plaintext with no guard and no monitor event — while its only
+ * reliable effect was to push callers into disabling enforcement process-wide. The same reasoning
+ * applies here. Restore the loud failure with `setStrictEncode(true)`.
+ */
+const _handoffMethods = new Set(['encode']);
+
+/** Make `encode` throw again (`true`) instead of only notifying (`false`, the default). */
+function setStrictEncode(strict) {
+  if (strict) _handoffMethods.delete('encode');
+  else _handoffMethods.add('encode');
+}
+
 const _EXTRACTION_MESSAGE = {
   iteration:
     'Ranbval: character-by-character iteration of a secret is blocked — this is how in-memory ' +
@@ -112,10 +159,12 @@ function raiseExtraction(method) {
  */
 function guardReveal(method) {
   notifyReveal(method);
-  if (_enforced) raiseExtraction(method);
+  if (_enforced && !_handoffMethods.has(method)) raiseExtraction(method);
 }
 
 module.exports = {
+  enforcementScope,
+  setStrictEncode,
   setRevealNotifier,
   notifyReveal,
   setEnforcement,

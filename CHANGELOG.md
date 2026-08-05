@@ -7,6 +7,89 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [0.16.0] - 2026-08-05
+
+The Node SDK claimed "full parity on the same `.ranbval` format". It was not in parity, and two of
+the gaps were security holes rather than missing conveniences. Both were found by measuring.
+
+### Breaking
+
+- **The repo allowlist is now actually enforced, and fails closed.** `safeDecrypt()` performed
+  **no allowlist check at all**. Verified by decrypting outside any git repository, with no flags
+  set: it returned the plaintext. Two causes, both in the sync path:
+
+  - `RANBVAL_SKIP_REPO_CHECK=1` short-circuited it — **the flag is removed**; and
+  - without that flag it still returned early, because Node has no synchronous HTTP and the
+    check was simply skipped rather than performed.
+
+  The check now runs a short-lived child process to make the policy fetch blocking, which is what
+  Python's `urllib` call does. **An unreachable control plane refuses rather than allows** —
+  otherwise unplugging the network would be the bypass. The policy is cached for 60s, so the
+  spawn is paid per TTL rather than per decrypt, and `_enforcePolicy()` is shared by the sync and
+  async paths so they cannot drift.
+
+  The flag existed largely so the test suite could run. The tests now substitute the policy check
+  the way the Python suite monkeypatches it, and pass without any production bypass.
+
+### Added
+
+- **A working output guard.** The previous one detected leaks by comparing stack frames, was never
+  installed by anything, and blocked **0 of 9** spellings when measured. Replaced with the Python
+  SDK's content-based design: every revealed plaintext is registered, and anything reaching
+  `console.*` or either stream is checked against it. Now **8 of 9**:
+
+  ```
+  console.log(v) · console.log(`${v}`) · console.log('k=' + v) · console.error(`${v}`)
+  console.log(String(v)) · console.log({ key: `${v}` })
+  process.stdout.write(`${v}`) · process.stderr.write(`${v}`)      → PermissionError
+  ```
+
+  It installs itself at the first decrypt, before the plaintext exists, so the value that
+  triggered it is itself registered. An explicit refusal — `loadRanbval(null, { guardStdout:
+  false })` or `uninstallOutputGuards()` — is remembered, so the next decrypt does not put back
+  what the caller declined.
+
+  **The ninth is `` `${v}`.slice(0, 8) `` and it cannot be caught in Node.** Python blocks
+  truncation in `__format__`, where the precision is part of the format itself. A template literal
+  produces an ordinary string first, and `.slice()` then runs on that — there is nothing left to
+  intercept. Stated here rather than left for someone to discover.
+
+- **`use.NAME`** — one word per secret, with the same prefix resolution (`SECRET_`, `PUBLIC_`,
+  bare), the same refusal for `PROXY_` values, and the same loud failure naming every spelling
+  tried instead of returning `undefined`.
+- **`enforcementScope(enabled, fn)`** — relax the extraction guards for one callback instead of
+  the whole process, and **`setStrictEncode()`**.
+- **`requireRevealScope()` / `revealScope()`** — pin a secret's plaintext to approved call sites.
+- **`proxyToken()`** — the ciphertext for a `PROXY_` key, to hand to `proxyRequest`.
+- **A file-mode guard.** A default umask creates `.ranbval.local` as `0644` — readable by every
+  account on the machine, holding the key to every token. Warns with the exact `chmod`;
+  `RANBVAL_STRICT_FILE_MODE=1` makes it an error. POSIX only.
+- **`guardStdout` option** on `loadRanbval`, for parity.
+
+### Security
+
+- **`RANBVAL_HOST` can no longer redirect the control plane.** The repo allowlist verdict is
+  whatever the host answers, and the host was read from the environment without constraint —
+  so pointing it at a server that returns `{"enforce_allowlist": false}` walked straight past
+  the allowlist. No configuration uses the official host; a host passed in code is honoured;
+  anything else from the environment is refused. A self-hosted plane opts in from code with
+  `allowHostOverride()`, once — not an environment variable, because that is the side of the
+  boundary an attacker already holds.
+
+### Fixed
+
+- **Every outbound URL is checked for scheme.** Node's `fetch` refuses `file:` and `ftp:` but
+  accepts `data:` — and the host comes from configuration, so a `data:` URL would let whoever set
+  it choose the response, including a repo policy that permits everything.
+
+### Removed
+
+- **The dead output-guard machinery** in `secretString.js` — roughly 2,600 characters of
+  stack-frame inspection that never fired, plus a second `installOutputGuards` that `loadRanbval`
+  called to no effect.
+
+---
+
 ## [0.15.0] - 2026-07-23
 
 Structural release: the package is reorganised to mirror the Python SDK file-for-file, and the

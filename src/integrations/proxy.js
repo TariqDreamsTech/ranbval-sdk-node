@@ -33,6 +33,8 @@ const { _findProjectSecretFor } = require('../crypto/cipher');
 
 const { PlanLimitError } = require('../exceptions/plan');
 const { ProxyError } = require('../exceptions/proxy');
+const { assertSafeUrl } = require('../_internal/transport');
+const { resolveHost } = require('../_internal/host');
 
 /**
  * Send an HTTP request through the Ranbval secure proxy.
@@ -69,7 +71,7 @@ async function proxyRequest({
   promptTokens = 0,
   completionTokens = 0,
 }) {
-  const host = String(hostUrl || process.env.RANBVAL_HOST || DEFAULT_RANBVAL_HOST).replace(/\/+$/, '');
+  const host = resolveHost(hostUrl);
 
   // ── Resolve api_key ──────────────────────────────────────────────────────
   const resolvedApiKey = String(apiKey || process.env.RANBVAL_API_KEY || '').trim();
@@ -114,7 +116,7 @@ async function proxyRequest({
 
   let resp;
   try {
-    resp = await fetch(`${host}/api/execute`, {
+    resp = await fetch(assertSafeUrl(`${host}/api/execute`), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

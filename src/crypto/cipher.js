@@ -17,8 +17,12 @@
 const crypto = require('node:crypto');
 
 const { DEFAULT_RANBVAL_HOST } = require('../_internal/defaults');
-const { assertRepoAllowedForDecrypt } = require('../policy/repo');
+// Required as a module rather than destructured so the call resolves at call time. That is what
+// lets a test substitute the policy check the way the Python suite monkeypatches it — the
+// alternative was a production bypass flag existing purely so the tests could run.
+const repo = require('../policy/repo');
 const { SecretString } = require('./secretString');
+const { resolveHost } = require('../_internal/host');
 
 const PBKDF2_ITERATIONS = 100000;
 const KEY_LENGTH_BYTES = 32; // AES-256
@@ -44,8 +48,8 @@ function deriveKey(password, saltStr) {
 }
 
 function _enforceRepoAllowlistIfConfigured(clientSalt) {
-  const host = (process.env.RANBVAL_HOST || DEFAULT_RANBVAL_HOST).trim();
-  assertRepoAllowedForDecrypt(host, clientSalt);
+  const host = resolveHost();
+  repo.assertRepoAllowedForDecrypt(host, clientSalt);
 }
 
 /**

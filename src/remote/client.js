@@ -11,6 +11,8 @@
 'use strict';
 
 const { DEFAULT_RANBVAL_HOST } = require('../_internal/defaults');
+const { assertSafeUrl } = require('../_internal/transport');
+const { resolveHost } = require('../_internal/host');
 
 class RanbvalConfigError extends Error {
   constructor(message, code) {
@@ -21,7 +23,7 @@ class RanbvalConfigError extends Error {
 }
 
 function _host(host) {
-  return String(host || process.env.RANBVAL_HOST || DEFAULT_RANBVAL_HOST).replace(/\/+$/, '');
+  return resolveHost(host);
 }
 
 /** Owner uses projectSecret; developer uses apiKey. Exactly one is required. */
@@ -60,7 +62,7 @@ function _environment(environment) {
 async function _post(url, payload, timeout) {
   let resp;
   try {
-    resp = await fetch(url, {
+    resp = await fetch(assertSafeUrl(url), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),

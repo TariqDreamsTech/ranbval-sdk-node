@@ -8,7 +8,6 @@
  *   node examples/basic.js
  *
  * Env flags (optional):
- *   RANBVAL_SKIP_REPO_CHECK=1            skip git-origin allowlist check
  *   RANBVAL_HOST=http://localhost:8016   override server (default: .ranbval value)
  */
 

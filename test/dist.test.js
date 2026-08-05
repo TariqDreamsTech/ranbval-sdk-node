@@ -13,6 +13,13 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 
+// These tests decrypt, and decryption now performs a real, blocking repo-policy call with no
+// client-side skip. The bundle is minified, so the check cannot be substituted the way the unit
+// tests substitute it in source. Rather than reintroduce a bypass flag purely so a test can run —
+// which is how RANBVAL_SKIP_REPO_CHECK came to exist in the first place — the decrypt smoke tests
+// run only when a control plane is reachable. Everything that does not decrypt still runs.
+const CAN_REACH_CONTROL_PLANE = process.env.RANBVAL_DIST_E2E === '1';
+
 const distPath = path.resolve(__dirname, '..', 'dist', 'index.js');
 
 if (!fs.existsSync(distPath)) {
@@ -33,8 +40,7 @@ if (!fs.existsSync(distPath)) {
     return `ranbval.${salt}.${Buffer.concat([iv, ct, tag]).toString('base64url')}.ahsan`;
   }
 
-  test('dist: round-trip decrypt', () => {
-    process.env.RANBVAL_SKIP_REPO_CHECK = '1';
+  test('dist: round-trip decrypt', { skip: !CAN_REACH_CONTROL_PLANE && 'needs a reachable control plane (RANBVAL_DIST_E2E=1)' }, () => {
     const token = buildVaultToken('sk-dist-roundtrip', 'ranbval-proj-dist');
     const out = safeDecrypt(token, 'ranbval-proj-dist');
     assert.strictEqual(String(out.use()), 'sk-dist-roundtrip');
@@ -47,8 +53,7 @@ if (!fs.existsSync(distPath)) {
     assert.strictEqual(String(s.use()), 'top-secret');
   });
 
-  test('dist: decryptKey via env prefix discovery', () => {
-    process.env.RANBVAL_SKIP_REPO_CHECK = '1';
+  test('dist: decryptKey via env prefix discovery', { skip: !CAN_REACH_CONTROL_PLANE && 'needs a reachable control plane (RANBVAL_DIST_E2E=1)' }, () => {
     process.env.RANBVAL_PROJECT_SECRET = 'ranbval-proj-dist-env';
     process.env.MY_DIST_KEY = buildVaultToken('sk-dist-env', 'ranbval-proj-dist-env');
     assert.strictEqual(String(decryptKey('MY_DIST_KEY').use()), 'sk-dist-env');

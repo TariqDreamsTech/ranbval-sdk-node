@@ -12,6 +12,11 @@ const crypto = require('node:crypto');
 
 const { safeDecrypt, deriveKey, decryptKey, SecretString } = require('../src');
 
+// The allowlist check is server-side and has no client-side skip — by design. Tests
+// substitute it, exactly as the Python suite monkeypatches
+// _enforce_repo_allowlist_if_configured, rather than relying on a production bypass.
+require('../src/policy/repo').assertRepoAllowedForDecrypt = () => {};
+
 /** Build a Python-SDK-compatible vault token from plaintext. */
 function buildVaultToken(plaintext, projectSecret) {
   const salt = 'noise12345'.slice(0, 10);
@@ -30,7 +35,6 @@ test('safeDecrypt round-trips a token built with the same key derivation', () =>
   const token = buildVaultToken(plaintext, projectSecret);
 
   // Repo check skipped via env so the test does not hit the network.
-  process.env.RANBVAL_SKIP_REPO_CHECK = '1';
 
   const out = safeDecrypt(token, projectSecret);
   assert.ok(out instanceof SecretString);
@@ -41,7 +45,7 @@ test('safeDecrypt round-trips a token built with the same key derivation', () =>
 
 test('safeDecrypt throws on wrong project secret', () => {
   const token = buildVaultToken('hello', 'right-secret');
-  process.env.RANBVAL_SKIP_REPO_CHECK = '1';
+
   assert.throws(
     () => safeDecrypt(token, 'wrong-secret'),
     /Decryption failed/,
@@ -49,13 +53,13 @@ test('safeDecrypt throws on wrong project secret', () => {
 });
 
 test('safeDecrypt throws on malformed token', () => {
-  process.env.RANBVAL_SKIP_REPO_CHECK = '1';
+
   assert.throws(() => safeDecrypt('not-a-ranbval-token', 'whatever'), /fragmentation error|signature matrix/);
   assert.throws(() => safeDecrypt('foo.bar.baz.ahsan', 'whatever'), /signature matrix/);
 });
 
 test('decryptKey reads token from env and uses RANBVAL_PROJECT_SECRET fallback', () => {
-  process.env.RANBVAL_SKIP_REPO_CHECK = '1';
+
   const projectSecret = 'ranbval-proj-globaltest';
   process.env.RANBVAL_PROJECT_SECRET = projectSecret;
   process.env.MY_OPENAI_KEY = buildVaultToken('sk-my-openai', projectSecret);
@@ -112,7 +116,7 @@ test('SecretString: Symbol.dispose zeroes memory (using-keyword contract)', () =
 });
 
 test('SecretString: context manager pattern — client init, secret wiped', () => {
-  process.env.RANBVAL_SKIP_REPO_CHECK = '1';
+
   const projectSecret = 'ranbval-proj-cm-test';
   const token = buildVaultToken('sk-live-abc123', projectSecret);
   process.env.RANBVAL_PROJECT_SECRET = projectSecret;

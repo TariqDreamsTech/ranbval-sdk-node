@@ -532,7 +532,7 @@ const normalized = normalizeGitRemoteUrl(remote);    // e.g. "github.com/org/rep
 const policy = await fetchRepoPolicy({ projectSecret: process.env.MYAPP_PROJECT_SECRET });
 ```
 
-Both assert functions throw if the current repo is not on the allowlist. Set `RANBVAL_SKIP_REPO_CHECK=1` to bypass the check entirely (useful in CI environments that clone to non-standard paths).
+Both assert functions throw if the current repo is not on the allowlist. **There is no client-side bypass** — the policy is fetched from the control plane on every decrypt, and an unreachable control plane refuses rather than allows, so pulling the network cable is not a way past it. For a job with no repo at all, use a `PROXY_` secret.
 
 ---
 
@@ -540,10 +540,9 @@ Both assert functions throw if the current repo is not on the allowlist. Set `RA
 
 | Variable | Effect |
 |---|---|
-| `RANBVAL_HOST` | Override the Ranbval API host (default: `https://api.secret.ranbval.com`) |
+| `RANBVAL_HOST` (must match the official host unless `allowHostOverride()` was called in code) | Override the Ranbval API host (default: `https://api.secret.ranbval.com`) |
 | `RANBVAL_PROJECT_SECRET` | Default project secret used when prefix-based discovery finds nothing |
 | `RANBVAL_API_KEY` | SDK API key required by `proxyRequest()` |
-| `RANBVAL_SKIP_REPO_CHECK=1` | Bypass the git-origin allowlist check |
 | `RANBVAL_ALLOWED_REPOS` | Comma-separated local allowlist (no network call) |
 | `RANBVAL_TELEMETRY=0` | Disable `emitTelemetry()` silently |
 | `RANBVAL_TELEMETRY_DEBUG=1` | Log telemetry failures to `stderr` |

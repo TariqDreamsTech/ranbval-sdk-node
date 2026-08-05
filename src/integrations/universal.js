@@ -11,6 +11,7 @@
 const { safeDecrypt } = require('../crypto/cipher');
 const { DEFAULT_RANBVAL_HOST } = require('../_internal/defaults');
 const { emitTelemetry } = require('../telemetry/client');
+const { resolveHost } = require('../_internal/host');
 
 /**
  * Build a class that, when constructed, reads `envVarName`, decrypts it (if it
@@ -36,7 +37,7 @@ function buildSecureClient(SDKClass, envVarName, keyKwarg, methodPathToPatch = n
         );
         secret = String(process.env.RANBVAL_VAULT_SECRET).trim();
       }
-      const host = process.env.RANBVAL_HOST || DEFAULT_RANBVAL_HOST;
+      const host = resolveHost();
 
       if (!encodedKey) {
         throw new Error(`No ${envVarName} found or provided.`);

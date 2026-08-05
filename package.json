@@ -1,6 +1,6 @@
 {
   "name": "ranbval-sdk",
-  "version": "0.15.0",
+  "version": "0.16.0",
   "description": "Secrets that refuse to be stolen: API keys sealed with AES-256-GCM that decrypt only when used, throw if anything tries to read them apart, log every access, and can run entirely server-side so the plaintext never touches your process. Zero production dependencies, plus a ranbval CLI.",
   "main": "dist/index.js",
   "files": [

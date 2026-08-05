@@ -50,27 +50,8 @@ const _wiped = new WeakMap();
 const _rawSym = Symbol('ranbval.raw');
 
 // ── Call-site tracking for template-literal-in-console detection ──────────────
-// Set by _ProtectedValue.toString / [Symbol.toPrimitive], cleared by output guards.
-let _recentCoercionSite = null;
-
-/**
- * Return the Nth stack frame above this function's direct caller, with the column
- * number stripped so that two calls on the same source line compare as equal
- * regardless of their column positions within the expression.
- *
- * skipExtra=0 → the function that called _callerOf
- * skipExtra=1 → one level above that
- */
-function _callerOf(skipExtra) {
-  try {
-    const frame = (new Error().stack.split('\n')[2 + skipExtra] || '').trim();
-    // Strip column: "at foo (file.js:10:5)" → "at foo (file.js:10)"
-    //               "at file.js:10:5"        → "at file.js:10"
-    return frame.replace(/:\d+(\)?)$/, '$1');
-  } catch {
-    return '';
-  }
-}
+/** Brand so the output guard can recognise the type without stringifying it. */
+const PROTECTED_BRAND = Symbol.for('ranbval.protectedValue');
 
 // ── _ProtectedValue ───────────────────────────────────────────────────────────
 
@@ -93,10 +74,11 @@ class _ProtectedValue {
     });
   }
 
+  get [PROTECTED_BRAND]() {
+    return true;
+  }
+
   toString() {
-    // Record call site so the output guard can detect console.log(`${key.use()}`).
-    // Stack: _callerOf → toString → actual caller (lines[3] = _callerOf(1))
-    _recentCoercionSite = _callerOf(1);
     return this[_rawSym];
   }
 
@@ -106,8 +88,6 @@ class _ProtectedValue {
 
   [Symbol.toPrimitive](hint) {
     if (hint === 'number') return NaN;
-    // Record call site for template-literal / string-concat detection.
-    _recentCoercionSite = _callerOf(1);
     return this[_rawSym];
   }
 
@@ -167,84 +147,6 @@ function _guarded(protectedValue) {
       return typeof value === 'function' ? value.bind(target) : value;
     },
   });
-}
-
-// ── Output guards ─────────────────────────────────────────────────────────────
-
-let _guardsInstalled = false;
-const _origConsole = {};
-let _origStdoutWrite = null;
-
-const _ERR =
-  'Ranbval: cannot output a protected secret. ' +
-  'Pass it directly to the SDK — e.g. new OpenAI({ apiKey: key.use() })';
-
-function _makePermissionError() {
-  const err = new Error(_ERR);
-  err.name = 'PermissionError';
-  return err;
-}
-
-/**
- * Check args for _ProtectedValue (direct) and check whether [Symbol.toPrimitive]
- * / toString ran on the same source line as the current output call (template literal).
- *
- * @param {unknown[]} args
- * @param {number} extraFrames  frames between _checkOutput and the user's call site
- */
-function _checkOutput(args, extraFrames) {
-  // Case 1 — direct: console.log(key.use())
-  for (const arg of args) {
-    if (arg instanceof _ProtectedValue) {
-      throw _makePermissionError();
-    }
-  }
-  // Case 2 — coerced: console.log(`${key.use()}`) or console.log("" + key.use())
-  // [Symbol.toPrimitive]/toString recorded the call site just before us.
-  // If it matches this call's source line, block.
-  const callerSite = _callerOf(extraFrames);
-  if (_recentCoercionSite && callerSite && _recentCoercionSite === callerSite) {
-    _recentCoercionSite = null;
-    throw _makePermissionError();
-  }
-  _recentCoercionSite = null;
-}
-
-/**
- * Patch console.log/info/warn/error/debug and process.stdout.write so that
- * passing a _ProtectedValue (the value returned by SecretString.use()) to any
- * output function raises a PermissionError instead of leaking the plaintext.
- *
- * Called automatically by loadRanbval(). Safe to call multiple times.
- */
-function installOutputGuards() {
-  if (_guardsInstalled) return;
-
-  for (const method of ['log', 'info', 'warn', 'error', 'debug']) {
-    if (typeof console[method] === 'function') {
-      const orig = console[method].bind(console);
-      _origConsole[method] = orig;
-      // Stack when user calls console.log(...):
-      //   _callerOf → _checkOutput → ranbvalGuard → user code
-      // So extraFrames = 2 → lines[2+2] = lines[4] = user code
-      console[method] = function ranbvalGuard(...args) {
-        _checkOutput(args, 2);
-        return orig(...args);
-      };
-    }
-  }
-
-  if (process.stdout && typeof process.stdout.write === 'function') {
-    _origStdoutWrite = process.stdout.write.bind(process.stdout);
-    process.stdout.write = function ranbvalGuard(chunk, ...rest) {
-      if (chunk instanceof _ProtectedValue) {
-        throw _makePermissionError();
-      }
-      return _origStdoutWrite(chunk, ...rest);
-    };
-  }
-
-  _guardsInstalled = true;
 }
 
 // ── SecretString ───────────────────────────────────────────────────────────────
@@ -333,9 +235,20 @@ class SecretString {
     if (_wiped.get(this)) {
       throw new Error('SecretString has been wiped and cannot be used again');
     }
+    // Reveal gate: if this secret is restricted to explicit scopes, refuse to produce the
+    // plaintext outside one. Required lazily — reveal.js has no dependency on this module.
+    require('../config/reveal').gate(this._label);
     // Recorded before the value is handed over, so the log holds even if the caller then throws.
     audit.recordAccess(this._label);
-    return _guarded(new _ProtectedValue(this._buf.toString('utf8')));
+    const plain = this._buf.toString('utf8');
+    // Put the output guard up before this process holds the plaintext, and register the value
+    // that triggered it — otherwise the very first secret, the one most likely to be logged
+    // while debugging, would be the one value the guard could not recognise. Required lazily to
+    // avoid a cycle: outputGuards has no dependency on this module.
+    const guards = require('./outputGuards');
+    guards.ensureInstalled();
+    guards.registerRevealed(plain);
+    return _guarded(new _ProtectedValue(plain));
   }
 
   /** Length of the secret in bytes (safe — does not reveal content). */
@@ -349,4 +262,4 @@ class SecretString {
   }
 }
 
-module.exports = { SecretString, installOutputGuards, _ProtectedValue };
+module.exports = { PROTECTED_BRAND, SecretString, _ProtectedValue };

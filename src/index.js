@@ -23,6 +23,19 @@ const {
 } = require('./config/loader');
 const { emitTelemetry, saltFromRanbvalToken } = require('./telemetry/client');
 const { SecretString } = require('./crypto/secretString');
+const { use, createUse, proxyToken } = require('./config/quick');
+const { allowHostOverride, isHostOverrideAllowed } = require('./_internal/host');
+const {
+  requireRevealScope,
+  revealScope,
+  clearRevealRequirements,
+} = require('./config/reveal');
+const { enforcementScope, setStrictEncode } = require('./crypto/enforcement');
+const {
+  installOutputGuards,
+  uninstallOutputGuards,
+  PermissionError,
+} = require('./crypto/outputGuards');
 const { setEnforcement, isEnforced } = require('./crypto/enforcement');
 const { getAuditLog, clearAuditLog, auditScope } = require('./crypto/audit');
 const { Secret, defineConfig } = require('./config/declarative');
@@ -40,7 +53,24 @@ const {
 const errors = require('./exceptions');
 
 module.exports = {
+  // Control plane — the environment must not redirect it
+  allowHostOverride,
+  isHostOverrideAllowed,
+  // One word per secret
+  use,
+  createUse,
+  proxyToken,
+  // Reveal scopes — .use() only at approved call sites
+  requireRevealScope,
+  revealScope,
+  clearRevealRequirements,
+  // Scoped + granular enforcement
+  enforcementScope,
+  setStrictEncode,
   // Core crypto
+  installOutputGuards,
+  uninstallOutputGuards,
+  PermissionError,
   safeDecrypt,
   decryptKey,
   deriveKey,

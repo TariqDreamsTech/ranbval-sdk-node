@@ -9,6 +9,8 @@ const { execFileSync } = require('node:child_process');
 const { URL } = require('node:url');
 
 const { DEFAULT_RANBVAL_HOST, warnTelemetrySendFailed } = require('../_internal/defaults');
+const { assertSafeUrl } = require('../_internal/transport');
+const { resolveHost } = require('../_internal/host');
 
 function _getGitRemote() {
   try {
@@ -92,7 +94,7 @@ function emitTelemetry({
     }
     if (!salt) return;
 
-    const h = String(hostUrl || process.env.RANBVAL_HOST || DEFAULT_RANBVAL_HOST).replace(/\/+$/, '');
+    const h = resolveHost(hostUrl);
     let transport = 'http';
     try { transport = (new URL(h).protocol || 'http:').replace(':', '').toLowerCase(); } catch {}
 
@@ -123,7 +125,7 @@ function emitTelemetry({
     };
 
     try {
-      await fetch(`${h}/api/telemetry`, {
+      await fetch(assertSafeUrl(`${h}/api/telemetry`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

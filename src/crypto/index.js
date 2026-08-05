@@ -6,4 +6,9 @@
 
 'use strict';
 
-module.exports = { ...require('./cipher'), ...require('./secretString') };
+const outputGuards = require('./outputGuards');
+
+module.exports = {
+  installOutputGuards: outputGuards.installOutputGuards,
+  uninstallOutputGuards: outputGuards.uninstallOutputGuards,
+  PermissionError: outputGuards.PermissionError, ...require('./cipher'), ...require('./secretString') };

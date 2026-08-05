@@ -11,7 +11,8 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { installOutputGuards } = require('../crypto/secretString');
+
+const { RanbvalConfigError } = require('../exceptions');
 
 /**
  * Which mode-specific file to merge: `development` | `production` | custom.
@@ -223,6 +224,68 @@ function _normalizeProjectName(name) {
  *          projectSecret?: string|null, projectName?: string|null}} [opts]
  * @returns {boolean} true if at least one file was read.
  */
+/** Conventional suffixes for a committed template — its *_PROJECT_SECRET line is a placeholder. */
+const TEMPLATE_SUFFIXES = ['.example', '.sample', '.template', '.dist'];
+
+/** True if the file holds a `*_PROJECT_SECRET=` line — the root key that unseals everything. */
+function fileHoldsProjectSecret(file) {
+  if (TEMPLATE_SUFFIXES.some((suf) => file.toLowerCase().endsWith(suf))) return false;
+  let text;
+  try {
+    text = require('node:fs').readFileSync(file, 'utf8');
+  } catch {
+    return false;
+  }
+  return text.split(/\r?\n/).some((line) => {
+    const t = line.trim();
+    if (!t || t.startsWith('#') || !t.includes('=')) return false;
+    const name = t.split('=')[0].trim().toUpperCase();
+    return name === 'RANBVAL_PROJECT_SECRET' || name.endsWith('_PROJECT_SECRET');
+  });
+}
+
+/**
+ * Warn when the file holding the project secret is readable by other users on the machine.
+ *
+ * The project secret is the one value that cannot be encrypted, so on a shared box or a build
+ * agent the file mode is the only thing between another account and the whole vault. A default
+ * umask produces 0644. `ssh` refuses a private key in that state; this warns, because 0644 is
+ * what the OS produces rather than something the user did wrong. RANBVAL_STRICT_FILE_MODE=1
+ * makes it an error, which is the right setting for CI and production images.
+ *
+ * POSIX only — Windows does not express access this way.
+ */
+function checkSecretFileModes(files) {
+  if (process.platform === 'win32') return;
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const offenders = [];
+  for (const f of files) {
+    if (!fileHoldsProjectSecret(f)) continue;
+    let mode;
+    try {
+      mode = fs.statSync(f).mode & 0o777;
+    } catch {
+      continue;
+    }
+    if (mode & 0o077) offenders.push([f, mode]);
+  }
+  if (!offenders.length) return;
+
+  const detail = offenders.map(([f, m]) => `${path.basename(f)} is ${m.toString(8).padStart(4, '0')}`).join(', ');
+  const fix = offenders.map(([f]) => `chmod 600 ${path.basename(f)}`).join('; ');
+  const message =
+    `${detail} — your project secret is readable by other users on this machine, and that key ` +
+    `unseals every token in .ranbval. Fix it with:\n    ${fix}\n` +
+    '(Set RANBVAL_STRICT_FILE_MODE=1 to make this an error instead of a warning.)';
+
+  const strict = String(process.env.RANBVAL_STRICT_FILE_MODE || '').trim().toLowerCase();
+  if (['1', 'true', 'yes', 'on'].includes(strict)) {
+    throw new RanbvalConfigError(`Ranbval: ${message}`, { code: 'secret_file_world_readable' });
+  }
+  process.emitWarning(`Ranbval: ${message}`);
+}
+
 function loadRanbval(pathArg, opts = {}) {
   const {
     mode = null,
@@ -234,7 +297,17 @@ function loadRanbval(pathArg, opts = {}) {
     remote = false,
     apiKey = null,
     host = null,
+    guardStdout = true,
   } = opts || {};
+
+  // Raise the output guard during load, the same as the Python SDK. `SecretString.use()` also
+  // raises it, so a caller who never comes through here is still covered; this path exists so it
+  // is up before anything at all, and so an explicit refusal can be recorded.
+  {
+    const guards = require('../crypto/outputGuards');
+    if (guardStdout) guards.installOutputGuards();
+    else guards.setOptedOut(true);
+  }
 
   // Shared tail: apply the merged {key: value} into process.env, then the project secret / name and
   // the output guards. Used by BOTH the local-file and remote paths so they behave identically.
@@ -262,9 +335,6 @@ function loadRanbval(pathArg, opts = {}) {
       }
     }
 
-    // Patch console.* / process.stdout.write so passing a _ProtectedValue (the return of
-    // SecretString.use()) to any output function raises.
-    installOutputGuards();
     return true;
   };
 
@@ -294,6 +364,7 @@ function loadRanbval(pathArg, opts = {}) {
     // the Python SDK.
     const m = resolveRanbvalMode(mode != null ? mode : environment);
     const layers = _layerPaths(root, m);
+    checkSecretFileModes(layers);
     if (layers.length === 0) return false;
     // Before anything else: if a file holding the project secret is committable, stop.
     _assertSecretNotCommittable(layers);
